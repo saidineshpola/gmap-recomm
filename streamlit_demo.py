@@ -37,6 +37,7 @@ if prompt := st.chat_input("How can I help you today?"):
             data = response.json()
             full_response = data["response"]
             results = data["results"]
+            conversation_history = data["conversation_history"]
 
             message_placeholder.markdown(full_response)
 
@@ -45,6 +46,9 @@ if prompt := st.chat_input("How can I help you today?"):
                     st.subheader(f"Images for {result['data'].get('name', 'Business')}")
                     for pic_url in result["data"]["photos"]:
                         st.image(pic_url, width=200)
+
+            # Update the session state with the new conversation history
+            # st.session_state.messages = conversation_history
         else:
             message_placeholder.markdown(
                 "Sorry, there was an error processing your request."

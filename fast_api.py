@@ -13,7 +13,6 @@ from llama_index.core import (
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import StorageContext
-from cachetools import TTLCache, cached
 
 app = FastAPI()
 
@@ -26,8 +25,8 @@ index = None
 gmap_id_to_data = {}
 user_reviews = {}
 
-# Cache for user conversations
-conversation_cache = TTLCache(maxsize=1000, ttl=3600)  # Cache for 1 hour
+# Dictionary to store conversation history
+conversation_history = {}
 
 
 def load_data():
@@ -95,12 +94,7 @@ async def startup_event():
 class Query(BaseModel):
     query: str
     user_id: str
-    conversation_id: str = None
-
-
-@cached(cache=conversation_cache)
-def get_conversation_history(conversation_id):
-    return []
+    conversation_id: str
 
 
 @app.post("/query")
@@ -135,8 +129,9 @@ async def query_endpoint(query: Query):
                 )
         context += "\n"
 
-    # Get conversation history
-    conversation_history = get_conversation_history(query.conversation_id)
+    # Get or initialize conversation history
+    if query.conversation_id not in conversation_history:
+        conversation_history[query.conversation_id] = []
 
     # Prepare messages for ollama
     messages = [
@@ -147,7 +142,7 @@ async def query_endpoint(query: Query):
     ]
 
     # Add conversation history
-    messages.extend(conversation_history)
+    messages.extend(conversation_history[query.conversation_id])
 
     # Add current context and query
     messages.append(
@@ -160,13 +155,18 @@ async def query_endpoint(query: Query):
     ollama_response = ollama.chat(model="llama3", messages=messages)
 
     # Update conversation history
-    conversation_history.append({"role": "user", "content": query.query})
-    conversation_history.append(
+    conversation_history[query.conversation_id].append(
+        {"role": "user", "content": query.query}
+    )
+    conversation_history[query.conversation_id].append(
         {"role": "assistant", "content": ollama_response["message"]["content"]}
     )
-    conversation_cache[query.conversation_id] = conversation_history
 
-    return {"response": ollama_response["message"]["content"], "results": results}
+    return {
+        "response": ollama_response["message"]["content"],
+        "results": results,
+        "conversation_history": conversation_history[query.conversation_id],
+    }
 
 
 if __name__ == "__main__":
