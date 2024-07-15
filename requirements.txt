@@ -1,0 +1,6 @@
+llama_index
+llama-index-embeddings-huggingface
+llama-index-vector-stores-chroma
+llama-index-llms-ollama
+chromadb
+datasets
