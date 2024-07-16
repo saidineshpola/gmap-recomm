@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import uuid
+from PIL import Image
+import io
 
 st.title("Personalized Location-based Recommendation System")
 
@@ -42,10 +44,26 @@ if prompt := st.chat_input("How can I help you today?"):
             message_placeholder.markdown(full_response)
 
             for result in results:
-                if "photos" in result["data"]:
-                    st.subheader(f"Images for {result['data'].get('name', 'Business')}")
-                    for pic_url in result["data"]["photos"]:
-                        st.image(pic_url, width=200)
+                if result["top_images"]:
+                    st.subheader("Top Matching Images")
+                    # Display images side by side
+                    columns = st.columns(3)  # Adjust the number of columns as needed
+                    for i, img_url in enumerate(result["top_images"]):
+                        try:
+                            response = requests.get(img_url)
+                            img = Image.open(io.BytesIO(response.content))
+
+                            # Resize the image to maintain aspect ratio
+                            fixed_height = 200
+                            aspect_ratio = img.width / img.height
+                            new_width = int(fixed_height * aspect_ratio)
+                            img_resized = img.resize((new_width, fixed_height))
+
+                            columns[i % 3].image(
+                                img_resized, caption=img_url, use_column_width=True
+                            )
+                        except Exception as e:
+                            st.write(f"Error loading image: {e}")
 
             # Update the session state with the new conversation history
             # st.session_state.messages = conversation_history

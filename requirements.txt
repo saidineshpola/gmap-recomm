@@ -4,3 +4,4 @@ llama-index-vector-stores-chroma
 llama-index-llms-ollama
 chromadb
 datasets
+git+https://github.com/openai/CLIP.git
