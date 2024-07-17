@@ -13,8 +13,7 @@ from llama_index.core import (
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import StorageContext
-from utils import image_text_matching
-
+from utils import initialize_image_embeddings, image_text_matching
 
 app = FastAPI()
 
@@ -32,6 +31,12 @@ vector_index = None
 keyword_index = None
 # Dictionary to store conversation history and context
 conversation_data = {}
+
+# Initialize Chroma client and collection for images
+chroma_client = chromadb.PersistentClient(path="./chroma_db_images")
+image_collection = chroma_client.get_or_create_collection(
+    "image_embeddings", metadata={"hnsw:space": "cosine"}
+)
 
 
 def load_data():
@@ -58,10 +63,6 @@ def load_data():
                 if user_id not in user_reviews:
                     user_reviews[user_id] = []
                 user_reviews[user_id].append(review)
-
-                # if gmap_id not in business_reviews:
-                #     business_reviews[gmap_id] = []
-                # business_reviews[gmap_id].append(review)
 
                 if gmap_id not in business_images:
                     business_images[gmap_id] = set()
@@ -103,11 +104,19 @@ def load_data():
         vector_index = VectorStoreIndex.from_vector_store(
             vector_store, storage_context=storage_context
         )
-
     else:
         vector_index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context, embed_model=embed_model
         )
+
+    # Initialize image embeddings
+    if image_collection.count() == 0:
+        print("Initializing image embeddings...")
+        for gmap_id, urls in business_images.items():
+            initialize_image_embeddings(gmap_id, urls, image_collection)
+        print(f"Image embeddings initialized and saved in chroma_db_images")
+    else:
+        print("Image embeddings already loaded in Chroma DB")
 
 
 @app.on_event("startup")
@@ -129,14 +138,6 @@ def get_context(results, user_id):
         context += f"   Details: {json.dumps(result['data'], indent=2)}\n"
 
         business_id = result["data"]["gmap_id"]
-        # if business_id in business_reviews:
-        #     context += "   Business reviews:\n"
-        #     for review in business_reviews[business_id][
-        #         :5
-        #     ]:  # Limit to 5 reviews for brevity
-        #         context += (
-        #             f"   - Rating: {review['rating']}, Review: {review['text']}\n"
-        #         )
 
         if result["user_reviews"]:
             context += "   User's past reviews:\n"
@@ -154,7 +155,6 @@ async def query_endpoint(query: Query):
         raise HTTPException(status_code=500, detail="Index Data not loaded")
 
     if query.conversation_id not in conversation_data:
-
         # New conversation, perform semantic search
         query_engine = vector_index.as_retriever()
         response = query_engine.retrieve(query.query)
@@ -165,16 +165,17 @@ async def query_endpoint(query: Query):
                 "text": r.text,
                 "data": gmap_id_to_data[business_id],
                 "user_reviews": [],
-                # "business_reviews": business_reviews.get(business_id, []),
                 "images": list(business_images.get(business_id, set())),
             }
             if query.user_id and query.user_id in user_reviews:
                 for review in user_reviews[query.user_id]:
                     result["user_reviews"].append(review)
 
-            # Get top 2 closest images
+            # Get top 3 closest images
             if result["images"]:
-                top_images = image_text_matching(result["images"], query.query)
+                top_images = image_text_matching(
+                    query.query, business_id, image_collection
+                )
                 result["top_images"] = top_images
                 print("Top-k Images Generated")
             else:
@@ -190,16 +191,17 @@ async def query_endpoint(query: Query):
             "results": results,
         }
     else:
-        if conversation_data[query.conversation_id]["results"][0]["images"]:
-            top_images = image_text_matching(
-                conversation_data[query.conversation_id]["results"][0]["images"],
-                query.query,
-            )
-            conversation_data[query.conversation_id]["results"][0][
-                "images"
-            ] = top_images
-            print("Top-k Images Generated")
-        # Existing conversation, load context and results
+        # Existing conversation, update top images
+        business_id = conversation_data[query.conversation_id]["results"][0]["data"][
+            "gmap_id"
+        ]
+        top_images = image_text_matching(query.query, business_id, image_collection)
+        conversation_data[query.conversation_id]["results"][0][
+            "top_images"
+        ] = top_images
+        print("Top-k Images Updated")
+
+        # Load existing context and results
         context = conversation_data[query.conversation_id]["context"]
         results = conversation_data[query.conversation_id]["results"]
 
