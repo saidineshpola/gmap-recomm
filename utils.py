@@ -7,8 +7,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
 
 
-def initialize_image_embeddings(gmap_id, urls, image_collection):
-    for i, url in enumerate(urls):
+def initialize_image_embeddings(gmap_id, urls, image_collection, n_images=100):
+    for i, url in enumerate(urls[:n_images]):
         try:
             image = (
                 preprocess(Image.open(requests.get(url, stream=True).raw))
