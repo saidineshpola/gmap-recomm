@@ -14,6 +14,7 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import StorageContext
 from utils import initialize_image_embeddings, image_text_matching
+from typing import List, Dict, Any
 
 app = FastAPI()
 
@@ -29,8 +30,6 @@ business_reviews = {}
 business_images = {}
 vector_index = None
 keyword_index = None
-# Dictionary to store conversation history and context
-conversation_data = {}
 
 # Initialize Chroma client and collection for images
 chroma_client = chromadb.PersistentClient(path="./chroma_db_images")
@@ -109,15 +108,6 @@ def load_data():
             documents, storage_context=storage_context, embed_model=embed_model
         )
 
-    # Initialize image embeddings
-    if image_collection.count() == 0:
-        print("Initializing image embeddings...")
-        for gmap_id, urls in business_images.items():
-            initialize_image_embeddings(gmap_id, urls, image_collection)
-        print(f"Image embeddings initialized and saved in chroma_db_images")
-    else:
-        print("Image embeddings already loaded in Chroma DB")
-
 
 @app.on_event("startup")
 async def startup_event():
@@ -128,7 +118,13 @@ async def startup_event():
 class Query(BaseModel):
     query: str
     user_id: str
-    conversation_id: str
+    conversation_id = None
+
+
+class FollowUpQuery(BaseModel):
+    query: str
+    previous_results: Dict[str, Any]
+    conversation_history: List[Dict[str, str]]
 
 
 def get_context(results, user_id):
@@ -154,69 +150,48 @@ async def query_endpoint(query: Query):
     if vector_index is None:
         raise HTTPException(status_code=500, detail="Index Data not loaded")
 
-    if query.conversation_id not in conversation_data:
-        # New conversation, perform semantic search
-        query_engine = vector_index.as_retriever()
-        response = query_engine.retrieve(query.query)
-        results = []
-        for r in response:
-            business_id = r.metadata["businessId"]
-            result = {
-                "text": r.text,
-                "data": gmap_id_to_data[business_id],
-                "user_reviews": [],
-                "images": list(business_images.get(business_id, set())),
-            }
-            if query.user_id and query.user_id in user_reviews:
-                for review in user_reviews[query.user_id]:
-                    result["user_reviews"].append(review)
-
-            # Get top 3 closest images
-            if result["images"]:
-                top_images = image_text_matching(
-                    query.query, business_id, image_collection
-                )
-                result["top_images"] = top_images
-                print("Top-k Images Generated")
-            else:
-                result["top_images"] = []
-
-            results.append(result)
-
-        context = get_context(results, query.user_id)
-
-        conversation_data[query.conversation_id] = {
-            "history": [],
-            "context": context,
-            "results": results,
+    query_engine = vector_index.as_retriever()
+    response = query_engine.retrieve(query.query)
+    results = []
+    for r in response:
+        business_id = r.metadata["businessId"]
+        result = {
+            "text": r.text,
+            "data": gmap_id_to_data[business_id],
+            "user_reviews": [],
+            "images": list(business_images.get(business_id, set())),
         }
-    else:
-        # Existing conversation, update top images
-        business_id = conversation_data[query.conversation_id]["results"][0]["data"][
-            "gmap_id"
-        ]
-        top_images = image_text_matching(query.query, business_id, image_collection)
-        conversation_data[query.conversation_id]["results"][0][
-            "top_images"
-        ] = top_images
-        print("Top-k Images Updated")
+        if query.user_id and query.user_id in user_reviews:
+            for review in user_reviews[query.user_id]:
+                result["user_reviews"].append(review)
 
-        # Load existing context and results
-        context = conversation_data[query.conversation_id]["context"]
-        results = conversation_data[query.conversation_id]["results"]
+        existing_images = image_collection.get(where={"gmap_id": business_id})
+        if not existing_images["ids"]:
+            initialize_image_embeddings(business_id, result["images"], image_collection)
+            print(f"Image embeddings initialized for business {business_id}")
 
-    # Prepare messages for ollama
+        if result["images"]:
+            # Multi Modal Search on single business_id
+            top_images = image_text_matching(query.query, business_id, image_collection)
+            result["top_images"] = top_images
+            print("Top-k Images Generated")
+        else:
+            result["top_images"] = []
+
+        results.append(result)
+
+    context = get_context(results, query.user_id)
+
     messages = [
         {
             "role": "system",
-            "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query.",
+            "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query and Only respond with answer nothing else.",
         }
     ]
+    conversations = messages
 
-    # Add conversation history
-    messages.extend(conversation_data[query.conversation_id]["history"])
+    # messages.extend(query.conversation_history)
 
-    # Add current context and query
     messages.append(
         {
             "role": "user",
@@ -226,18 +201,63 @@ async def query_endpoint(query: Query):
 
     ollama_response = ollama.chat(model="llama3", messages=messages)
 
-    # Update conversation history
-    conversation_data[query.conversation_id]["history"].append(
-        {"role": "user", "content": query.query}
+    return {
+        "response": ollama_response["message"]["content"],
+        "results": results,
+        "conversation_history": [
+            {
+                "role": "system",
+                "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query.",
+            },
+            {"role": "user", "content": query.query},
+            {"role": "assistant", "content": ollama_response["message"]["content"]},
+        ],
+    }
+
+
+@app.post("/follow_up_query")
+async def follow_up_query_endpoint(query: FollowUpQuery):
+    if vector_index is None:
+        raise HTTPException(status_code=500, detail="Index Data not loaded")
+
+    # Use the previous results instead of performing a new search
+    results = query.previous_results["results"]
+
+    # Update top images for the first result (assuming it's the most relevant)
+    if results and results[0]["images"]:
+        business_id = results[0]["data"]["gmap_id"]
+        top_images = image_text_matching(query.query, business_id, image_collection)
+        results[0]["top_images"] = top_images
+        print("Top-k Images Updated")
+
+    context = get_context(results, query.previous_results.get("user_id", ""))
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query.",
+        }
+    ]
+
+    messages.extend(query.conversation_history)
+
+    messages.append(
+        {
+            "role": "user",
+            "content": f"Context:\n{context}\n\nUser Query: {query.query}\n Answer USER query only nothing else.",
+        }
     )
-    conversation_data[query.conversation_id]["history"].append(
-        {"role": "assistant", "content": ollama_response["message"]["content"]}
-    )
+
+    ollama_response = ollama.chat(model="llama3", messages=messages)
 
     return {
         "response": ollama_response["message"]["content"],
         "results": results,
-        "conversation_history": conversation_data[query.conversation_id]["history"],
+        "conversation_history": query.conversation_history
+        + [
+            {"role": "user", "content": query.query},
+            {"role": "assistant", "content": ollama_response["message"]["content"]},
+        ],
     }
 
 
