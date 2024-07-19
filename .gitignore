@@ -1,4 +1,4 @@
 chroma_db/
-.venv/
-datasets/
 chroma_db_images/
+datasets/
+raft/gen_data/

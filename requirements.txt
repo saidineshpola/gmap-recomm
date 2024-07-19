@@ -5,3 +5,5 @@ llama-index-llms-ollama
 chromadb
 datasets
 git+https://github.com/openai/CLIP.git
+fastapi
+# raft installation datasets openai PyPDF2 transformers langchain_experimental langchain_openai python-dotenv pyyaml coloredlogs mdc pytest
