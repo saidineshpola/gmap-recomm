@@ -115,12 +115,6 @@ async def startup_event():
     print("Data loaded")
 
 
-class Query(BaseModel):
-    query: str
-    user_id: str
-    conversation_id = None
-
-
 class FollowUpQuery(BaseModel):
     query: str
     previous_results: Dict[str, Any]
@@ -146,12 +140,12 @@ def get_context(results, user_id):
 
 
 @app.post("/query")
-async def query_endpoint(query: Query):
+async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
     if vector_index is None:
         raise HTTPException(status_code=500, detail="Index Data not loaded")
 
     query_engine = vector_index.as_retriever()
-    response = query_engine.retrieve(query.query)
+    response = query_engine.retrieve(input)  # Changed query.query to input
     results = []
     for r in response:
         business_id = r.metadata["businessId"]
@@ -161,8 +155,8 @@ async def query_endpoint(query: Query):
             "user_reviews": [],
             "images": list(business_images.get(business_id, set())),
         }
-        if query.user_id and query.user_id in user_reviews:
-            for review in user_reviews[query.user_id]:
+        if user_id and user_id in user_reviews:  # Changed query.user_id to user_id
+            for review in user_reviews[user_id]:  # Changed query.user_id to user_id
                 result["user_reviews"].append(review)
 
         existing_images = image_collection.get(where={"gmap_id": business_id})
@@ -172,7 +166,9 @@ async def query_endpoint(query: Query):
 
         if result["images"]:
             # Multi Modal Search on single business_id
-            top_images = image_text_matching(query.query, business_id, image_collection)
+            top_images = image_text_matching(
+                input, business_id, image_collection
+            )  # Changed query.query to input
             result["top_images"] = top_images
             print("Top-k Images Generated")
         else:
@@ -180,7 +176,7 @@ async def query_endpoint(query: Query):
 
         results.append(result)
 
-    context = get_context(results, query.user_id)
+    context = get_context(results, user_id)  # Changed query.user_id to user_id
 
     messages = [
         {
@@ -195,7 +191,7 @@ async def query_endpoint(query: Query):
     messages.append(
         {
             "role": "user",
-            "content": f"Context:\n{context}\n\nUser Query: {query.query}\n Answer USER query only nothing else.",
+            "content": f"Context:\n{context}\n\nUser Query: {input}\n Answer USER query only nothing else.",  # Changed query.query to input
         }
     )
 
@@ -209,7 +205,7 @@ async def query_endpoint(query: Query):
                 "role": "system",
                 "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query.",
             },
-            {"role": "user", "content": query.query},
+            {"role": "user", "content": input},  # Changed query.query to input
             {"role": "assistant", "content": ollama_response["message"]["content"]},
         ],
     }

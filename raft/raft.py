@@ -99,6 +99,7 @@ def ollama_generate(prompt, model="llama3"):
     url = "http://localhost:11434/api/generate"
     data = {"model": model, "prompt": prompt, "stream": False}
     response = requests.post(url, json=data)
+    # print(response.json()["response"])
     return response.json()["response"]
 
 
@@ -246,13 +247,13 @@ def main():
                 args.p,
                 model=args.completion_model,
             )
-            if i % 100 == 0:
+            if i % 100 == 0 and i > 0:
                 try:
-                    shutil.rmtree(args.output)
+                    ds.save_to_disk("./temp_data/")
+                    shutil.rmtree(args.output, ignore_errors=True)
+                    shutil.move("./temp_data/", args.output)
                 except OSError as e:
-                    print(f"Error: {args.output} : {e.strerror}")
-                # Save as .arrow format
-                ds.save_to_disk(args.output)
+                    logger.error(f"Error while saving dataset: {e.strerror}")
 
     # Save final dataset
     ds.save_to_disk(args.output)

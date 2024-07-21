@@ -4,10 +4,12 @@ import uuid
 from PIL import Image
 import io
 
-st.title("Personalized Location-based Recommendation System")
+st.set_page_config(layout="wide")
+
+st.title("AI-Powered Business Information Assistant")
 
 if "conversation_id" not in st.session_state:
-    st.session_state.conversation_id = str(uuid.uuid4())
+    st.session_state.conversation_id = 1  # Starting with 1, increment as needed
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -18,7 +20,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("How can I help you today?"):
+if prompt := st.chat_input("Ask me anything about businesses!"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -27,49 +29,95 @@ if prompt := st.chat_input("How can I help you today?"):
         message_placeholder = st.empty()
 
         # Make a request to the FastAPI backend
-        response = requests.post(
-            "http://localhost:8000/query",
-            json={
-                "query": prompt,
-                "user_id": user_id,
-                "conversation_id": st.session_state.conversation_id,
-            },
-        )
-        if response.status_code == 200:
+        try:
+            response = requests.post(
+                "http://localhost:8000/query",
+                params={
+                    "input": prompt,
+                    "user_id": user_id,
+                    "conversation_id": st.session_state.conversation_id,
+                },
+            )
+            response.raise_for_status()  # Raise an exception for bad status codes
+
             data = response.json()
             full_response = data["response"]
-            results = data["results"]
-            conversation_history = data["conversation_history"]
+            results = data.get("results", [])
 
+            # Display the response directly without the "AI Response" prefix
             message_placeholder.markdown(full_response)
 
-            for result in results:
-                if result["top_images"]:
-                    st.subheader("Top Matching Images")
-                    # Display images side by side
-                    columns = st.columns(3)  # Adjust the number of columns as needed
-                    for i, img_url in enumerate(result["top_images"]):
-                        try:
-                            response = requests.get(img_url)
-                            img = Image.open(io.BytesIO(response.content))
+            if results:
+                result = results[0]
+                business_data = result.get("data", {})
 
-                            # Resize the image to maintain aspect ratio
-                            fixed_height = 200
-                            aspect_ratio = img.width / img.height
-                            new_width = int(fixed_height * aspect_ratio)
-                            img_resized = img.resize((new_width, fixed_height))
+                st.subheader("Additinal Business Information")
+                col1, col2 = st.columns(2)
 
-                            columns[i % 3].image(
-                                img_resized, caption=img_url, use_column_width=True
-                            )
-                        except Exception as e:
-                            st.write(f"Error loading image: {e}")
+                with col1:
+                    st.markdown(f"**Name:** {business_data.get('name', 'N/A')}")
+                    st.markdown(
+                        f"**Category:** {', '.join(business_data.get('category', ['N/A']))}"
+                    )
+                    st.markdown(f"**Address:** {business_data.get('address', 'N/A')}")
 
-            # Update the session state with the new conversation history
-            # st.session_state.messages = conversation_history
-        else:
-            message_placeholder.markdown(
-                "Sorry, there was an error processing your request."
+                    avg_rating = business_data.get("avg_rating")
+                    if avg_rating:
+                        st.markdown(
+                            f"**Rating:** {'⭐' * int(avg_rating)} ({avg_rating}/5)"
+                        )
+
+                    st.markdown(
+                        f"**Number of Reviews:** {business_data.get('num_of_reviews', 'N/A')}"
+                    )
+                    st.markdown(f"**Price Range:** {business_data.get('price', 'N/A')}")
+                    st.markdown(
+                        f"**Current Status:** {business_data.get('state', 'N/A')}"
+                    )
+
+                    if "url" in business_data:
+                        st.markdown(f"[View on Google Maps]({business_data['url']})")
+
+                with col2:
+                    # if "hours" in business_data:
+                    #     st.subheader("Business Hours")
+                    #     for day, hours in business_data["hours"]:
+                    #         st.markdown(f"**{day}:** {hours}")
+
+                    if result.get("top_images"):
+                        st.subheader("Images")
+                        for img_url in result["top_images"]:
+                            try:
+                                img_response = requests.get(img_url)
+                                img_response.raise_for_status()
+                                img = Image.open(io.BytesIO(img_response.content))
+
+                                # Resize the image to maintain aspect ratio
+                                fixed_height = 150
+                                aspect_ratio = img.width / img.height
+                                new_width = int(fixed_height * aspect_ratio)
+                                img_resized = img.resize((new_width, fixed_height))
+
+                                st.image(img_resized, use_column_width=True)
+                            except Exception as e:
+                                st.write(f"Error loading image: {str(e)}")
+
+            # Increment conversation_id for the next interaction
+            st.session_state.conversation_id += 1
+
+        except requests.RequestException as e:
+            error_message = f"An error occurred: {str(e)}"
+            if hasattr(e, "response") and e.response is not None:
+                error_message += f"\nStatus code: {e.response.status_code}"
+                try:
+                    error_details = e.response.json()
+                    error_message += f"\nError details: {error_details}"
+                except ValueError:
+                    error_message += f"\nError content: {e.response.text}"
+
+            message_placeholder.error(error_message)
+            full_response = (
+                error_message  # Set full_response to error message for session state
             )
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})

@@ -76,3 +76,13 @@
 2024-07-18 19:32:08,041  INFO [  1%] raft Adding business 98/100391
 2024-07-18 19:32:28,768  INFO [  1%] raft Adding business 99/100391
 2024-07-18 19:32:46,909  INFO [  1%] raft Adding business 100/100391
+2024-07-19 22:46:45,902  INFO [  0%] raft Resuming from index 50
+2024-07-19 22:46:45,902  INFO [  1%] raft Adding business 50/100391
+2024-07-19 22:47:14,034  INFO [  1%] raft Adding business 51/100391
+2024-07-19 22:47:28,118  INFO [  1%] raft Adding business 52/100391
+2024-07-19 22:47:38,002  INFO [  1%] raft Adding business 53/100391
+2024-07-19 22:47:49,270  INFO [  1%] raft Adding business 54/100391
+2024-07-19 22:48:44,095  INFO [  0%] raft Resuming from index 50
+2024-07-19 22:48:44,095  INFO [  1%] raft Adding business 50/100391
+2024-07-19 22:48:56,371  INFO [  1%] raft Adding business 51/100391
+2024-07-19 22:49:09,054  INFO [  1%] raft Adding business 52/100391
