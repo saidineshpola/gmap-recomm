@@ -19,7 +19,9 @@ from typing import List, Dict, Any
 app = FastAPI()
 
 # Set up the embedding model
-embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+embed_model = HuggingFaceEmbedding(
+    model_name="./bge-small-en-v1.5"
+)  # BAAI/bge-small-en-v1.5
 Settings.embed_model = embed_model
 
 # Global variables to store loaded data

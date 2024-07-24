@@ -224,9 +224,14 @@ def main():
 
     # Check if there's a saved dataset
     if os.path.exists(args.output):
-        ds = load_from_disk(args.output)
-        start_index = ds.num_rows
-        logger.info(f"Resuming from index {start_index}")
+        try:
+            ds = load_from_disk(args.output)
+            start_index = ds.num_rows
+            logger.info(f"Resuming from index {start_index}")
+        except:
+            logger.info(f"Resuming failed")
+            ds = None
+            start_index = 0
     else:
         ds = None
         start_index = 0
@@ -249,11 +254,37 @@ def main():
             )
             if i % 100 == 0 and i > 0:
                 try:
+                    # Remove existing temp directory if it exists
+                    if os.path.exists("./temp_data/"):
+                        while True:
+                            try:
+                                shutil.rmtree("./temp_data/")
+                                break
+                            except OSError as e:
+                                logger.warning(
+                                    f"Waiting to remove temp_data directory: {e}"
+                                )
+                                time.sleep(1)
+
+                    # Save to temp directory
                     ds.save_to_disk("./temp_data/")
-                    shutil.rmtree(args.output, ignore_errors=True)
+
+                    # Remove existing output directory
+                    if os.path.exists(args.output):
+                        while True:
+                            try:
+                                shutil.rmtree(args.output)
+                                break
+                            except OSError as e:
+                                logger.warning(
+                                    f"Waiting to remove output directory: {e}"
+                                )
+                                time.sleep(1)
+
+                    # Move temp directory to output location
                     shutil.move("./temp_data/", args.output)
                 except OSError as e:
-                    logger.error(f"Error while saving dataset: {e.strerror}")
+                    logger.error(f"Error while saving dataset: {e}")
 
     # Save final dataset
     ds.save_to_disk(args.output)

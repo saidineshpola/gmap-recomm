@@ -9,12 +9,12 @@ st.set_page_config(layout="wide")
 st.title("AI-Powered Business Information Assistant")
 
 if "conversation_id" not in st.session_state:
-    st.session_state.conversation_id = 1  # Starting with 1, increment as needed
+    st.session_state.conversation_id = 1
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-user_id = "111423711419019424734"  # st.text_input("Enter your User ID (optional)")
+user_id = "111423711419019424734"
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -28,7 +28,6 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
 
-        # Make a request to the FastAPI backend
         try:
             response = requests.post(
                 "http://localhost:8000/query",
@@ -38,23 +37,27 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
                     "conversation_id": st.session_state.conversation_id,
                 },
             )
-            response.raise_for_status()  # Raise an exception for bad status codes
+            response.raise_for_status()
 
             data = response.json()
             full_response = data["response"]
             results = data.get("results", [])
 
-            # Display the response directly without the "AI Response" prefix
-            message_placeholder.markdown(full_response)
+            # Display the AI's response in a distinct box
+            st.markdown("### AI Response")
+            st.info(full_response)
 
             if results:
                 result = results[0]
                 business_data = result.get("data", {})
 
-                st.subheader("Additinal Business Information")
+                st.markdown("---")
+                st.header("Additional Business Information")
+
                 col1, col2 = st.columns(2)
 
                 with col1:
+                    st.subheader("Basic Details")
                     st.markdown(f"**Name:** {business_data.get('name', 'N/A')}")
                     st.markdown(
                         f"**Category:** {', '.join(business_data.get('category', ['N/A']))}"
@@ -79,30 +82,31 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
                         st.markdown(f"[View on Google Maps]({business_data['url']})")
 
                 with col2:
+                    pass
                     # if "hours" in business_data:
                     #     st.subheader("Business Hours")
                     #     for day, hours in business_data["hours"]:
                     #         st.markdown(f"**{day}:** {hours}")
 
-                    if result.get("top_images"):
-                        st.subheader("Images")
-                        for img_url in result["top_images"]:
-                            try:
-                                img_response = requests.get(img_url)
-                                img_response.raise_for_status()
-                                img = Image.open(io.BytesIO(img_response.content))
+                if result.get("top_images"):
+                    st.subheader("Images")
+                    image_col1, image_col2, image_col3 = st.columns(3)
+                    for idx, img_url in enumerate(result["top_images"]):
+                        try:
+                            img_response = requests.get(img_url)
+                            img_response.raise_for_status()
+                            img = Image.open(io.BytesIO(img_response.content))
 
-                                # Resize the image to maintain aspect ratio
-                                fixed_height = 150
-                                aspect_ratio = img.width / img.height
-                                new_width = int(fixed_height * aspect_ratio)
-                                img_resized = img.resize((new_width, fixed_height))
+                            fixed_height = 200
+                            aspect_ratio = img.width / img.height
+                            new_width = int(fixed_height * aspect_ratio)
+                            img_resized = img.resize((new_width, fixed_height))
 
+                            with [image_col1, image_col2, image_col3][idx % 3]:
                                 st.image(img_resized, use_column_width=True)
-                            except Exception as e:
-                                st.write(f"Error loading image: {str(e)}")
+                        except Exception as e:
+                            st.write(f"Error loading image: {str(e)}")
 
-            # Increment conversation_id for the next interaction
             st.session_state.conversation_id += 1
 
         except requests.RequestException as e:
@@ -115,9 +119,7 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
                 except ValueError:
                     error_message += f"\nError content: {e.response.text}"
 
-            message_placeholder.error(error_message)
-            full_response = (
-                error_message  # Set full_response to error message for session state
-            )
+            st.error(error_message)
+            full_response = error_message
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
