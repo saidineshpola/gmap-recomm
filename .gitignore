@@ -3,3 +3,5 @@ chroma_db_images/
 datasets/
 raft/gen_data/
 bge-small-en-v1.5/
+gguf_model/
+checkpoint_12000/
