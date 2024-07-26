@@ -15,6 +15,13 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import StorageContext
 from utils import initialize_image_embeddings, image_text_matching
 from typing import List, Dict, Any
+import json
+import hashlib
+
+# Ensure cache directory exists
+cache_dir = "query_cache"
+if not os.path.exists(cache_dir):
+    os.makedirs(cache_dir)
 
 app = FastAPI()
 
@@ -141,13 +148,26 @@ def get_context(results, user_id):
     return context
 
 
+hasher = hashlib.sha256()
+
+
 @app.post("/query")
 async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
     if vector_index is None:
         raise HTTPException(status_code=500, detail="Index Data not loaded")
 
+    # Generate a hash for the query
+    query_hash = hashlib.sha256(f"{input}:{user_id}".encode()).hexdigest()
+
+    # Check if cached response exists
+    cache_file = os.path.join(cache_dir, f"{query_hash}.json")
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            return json.load(f)
+
+    # If not cached, proceed with regular code
     query_engine = vector_index.as_retriever()
-    response = query_engine.retrieve(input)  # Changed query.query to input
+    response = query_engine.retrieve(input)
     results = []
     for r in response:
         business_id = r.metadata["businessId"]
@@ -157,8 +177,8 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
             "user_reviews": [],
             "images": list(business_images.get(business_id, set())),
         }
-        if user_id and user_id in user_reviews:  # Changed query.user_id to user_id
-            for review in user_reviews[user_id]:  # Changed query.user_id to user_id
+        if user_id and user_id in user_reviews:
+            for review in user_reviews[user_id]:
                 result["user_reviews"].append(review)
 
         existing_images = image_collection.get(where={"gmap_id": business_id})
@@ -167,10 +187,7 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
             print(f"Image embeddings initialized for business {business_id}")
 
         if result["images"]:
-            # Multi Modal Search on single business_id
-            top_images = image_text_matching(
-                input, business_id, image_collection
-            )  # Changed query.query to input
+            top_images = image_text_matching(input, business_id, image_collection)
             result["top_images"] = top_images
             print("Top-k Images Generated")
         else:
@@ -178,7 +195,7 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
 
         results.append(result)
 
-    context = get_context(results, user_id)  # Changed query.user_id to user_id
+    context = get_context(results, user_id)
 
     messages = [
         {
@@ -188,18 +205,17 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
     ]
     conversations = messages
 
-    # messages.extend(query.conversation_history)
-
     messages.append(
         {
             "role": "user",
-            "content": f"Context:\n{context}\n\nUser Query: {input}\n Answer USER query only nothing else.",  # Changed query.query to input
+            "content": f"Context:\n{context}\n\nUser Query: {input}\n Answer USER query only nothing else.",
         }
     )
 
-    ollama_response = ollama.chat(model="llama3", messages=messages)
+    ollama_response = ollama.chat(model="gmap_recomm_llama3", messages=messages)
 
-    return {
+    response_data = {
+        "query_hash": query_hash,
         "response": ollama_response["message"]["content"],
         "results": results,
         "conversation_history": [
@@ -207,10 +223,16 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
                 "role": "system",
                 "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query.",
             },
-            {"role": "user", "content": input},  # Changed query.query to input
+            {"role": "user", "content": input},
             {"role": "assistant", "content": ollama_response["message"]["content"]},
         ],
     }
+
+    # Save the response to cache
+    with open(cache_file, "w") as f:
+        json.dump(response_data, f)
+
+    return response_data
 
 
 @app.post("/follow_up_query")

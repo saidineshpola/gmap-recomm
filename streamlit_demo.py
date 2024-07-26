@@ -6,7 +6,7 @@ import io
 
 st.set_page_config(layout="wide")
 
-st.title("AI-Powered Business Information Assistant")
+st.title("Local Business Assistant")
 
 if "conversation_id" not in st.session_state:
     st.session_state.conversation_id = 1
@@ -89,7 +89,7 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
                     #         st.markdown(f"**{day}:** {hours}")
 
                 if result.get("top_images"):
-                    st.subheader("Images")
+                    st.subheader("Related Images")
                     image_col1, image_col2, image_col3 = st.columns(3)
                     for idx, img_url in enumerate(result["top_images"]):
                         try:
