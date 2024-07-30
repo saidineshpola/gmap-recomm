@@ -90,6 +90,8 @@ RAFT is a recipe to adapting LLMs to domain-specific RAG. For information about 
 - [x] Improve error handling and user feedback
 - [x] Optimize database queries for faster responses
 - [x] Implement caching mechanism for frequent queries
+- [x] Generate RAFT dataset using llama3 
+- [x] Finetune the llama3/local LLM on the new dataset created 
 - [ ] Replace chromaDB retriever with BM25 from llama-index(package installation issue)
 - [ ] Add unit tests for backend functions
 - [ ] Integrate with more data sources for comprehensive information
