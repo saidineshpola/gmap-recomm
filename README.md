@@ -4,6 +4,7 @@ This is a Streamlit app that uses a language model to assist with local business
 
 ## Table of Contents
 - [Features](#features)
+- [Demo](#demo)
 - [Installation](#installation)
 - [Datasets](#datasets)
 - [Initialize Backend](#initialize-backend)
@@ -15,6 +16,17 @@ This is a Streamlit app that uses a language model to assist with local business
 - Ask questions about local businesses
 - Get basic details about businesses
 - Follow up on previous queries
+
+## Demo
+
+<!-- ![Local Business Assistant Demo](path/to/your/demo.gif) -->
+
+*Demo of the Local Business Assistant in action*
+
+<video width="640" height="360" controls>
+  <source src="assets/demo.webm" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ## Installation
 
@@ -42,10 +54,10 @@ streamlit run streamlit_demo.py
 
 ## TODO
 
-- [ ] Improve error handling and user feedback
-- [ ] Optimize database queries for faster responses
-- [ ] Implement caching mechanism for frequent queries
-- [ ] Add Image data for visual Q&A
+- [x] Improve error handling and user feedback
+- [x] Optimize database queries for faster responses
+- [x] Implement caching mechanism for frequent queries
+- [ ] Replace chromaDB retriever with BM25 from llama-index(package installation issue)
 - [ ] Add unit tests for backend functions
 - [ ] Integrate with more data sources for comprehensive information
 - [ ] Implement a feedback system for users to rate responses
