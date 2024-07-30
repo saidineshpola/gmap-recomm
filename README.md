@@ -42,10 +42,10 @@ streamlit run streamlit_demo.py
 
 ## TODO
 
-- [ ] Improve error handling and user feedback
-- [ ] Optimize database queries for faster responses
-- [ ] Implement caching mechanism for frequent queries
-- [ ] Add Image data for visual Q&A
+- [x] Improve error handling and user feedback
+- [x] Optimize database queries for faster responses
+- [x] Implement caching mechanism for frequent queries
+- [ ] Replace chromaDB retriever with BM25 from llama-index(package installation issue)
 - [ ] Add unit tests for backend functions
 - [ ] Integrate with more data sources for comprehensive information
 - [ ] Implement a feedback system for users to rate responses
