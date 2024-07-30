@@ -69,7 +69,7 @@ Download the datasets from [google-local-dataset](https://datarepo.eng.ucsd.edu/
 ## Ollama model
 
 - You can use the model directly for inference if it fits the system otherwise you have to use [unsloth](https://github.com/unslothai/unsloth) model conversion to convert it to GGUF format.
-- you can use following code from unsloth to convert it to the GGUF model with q4_k_m quantization.
+- you can use the following code from unsloth to convert it to the GGUF model with q4_k_m quantization.
 ```python
 from unsloth import FastLanguageModel
 model, tokenizer = FastLanguageModel.from_pretrained("../checkpoint_xx")
@@ -118,5 +118,5 @@ RAFT is a recipe to adapting LLMs to domain-specific RAG. For information about 
 - [ ] Implement a feedback system for users to rate responses
 
 ## Blog
-The content is also explained in thie [blog](https://www.hackster.io/r-bot/enhancing-local-business-intelligence-beyond-google-map-46939f)
+The content is also explained briefly in thie [blog](https://www.hackster.io/r-bot/enhancing-local-business-intelligence-beyond-google-map-46939f)
 
