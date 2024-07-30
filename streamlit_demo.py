@@ -14,7 +14,7 @@ if "conversation_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-user_id = "111423711419019424734"
+user_id = "101039921652255289747"
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -30,7 +30,7 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
 
         try:
             response = requests.post(
-                "http://localhost:8000/query",
+                "http://localhost:8000//query_business",
                 params={
                     "input": prompt,
                     "user_id": user_id,

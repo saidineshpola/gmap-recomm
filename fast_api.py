@@ -13,7 +13,7 @@ from llama_index.core import (
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import StorageContext
-from utils import initialize_image_embeddings, image_text_matching
+from utils import initialize_image_embeddings, image_text_matching, safe_len
 from typing import List, Dict, Any
 import json
 import hashlib
@@ -70,6 +70,10 @@ def load_data():
 
                 if user_id not in user_reviews:
                     user_reviews[user_id] = []
+
+                if gmap_id not in business_reviews:
+                    business_reviews[gmap_id] = []
+                business_reviews[gmap_id].append(review)
                 user_reviews[user_id].append(review)
 
                 if gmap_id not in business_images:
@@ -212,7 +216,7 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
         }
     )
 
-    ollama_response = ollama.chat(model="gmap_recomm_llama3", messages=messages)
+    ollama_response = ollama.chat(model="llama3", messages=messages)
 
     response_data = {
         "query_hash": query_hash,
@@ -233,6 +237,132 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
         json.dump(response_data, f)
 
     return response_data
+
+
+@app.post("/query_business")
+async def query_with_reviews_endpoint(
+    input: str, user_id: str, conversation_id: int = None
+):
+    if vector_index is None:
+        raise HTTPException(status_code=500, detail="Index Data not loaded")
+
+    # Generate a hash for the query
+    query_hash = hashlib.sha256(f"{input}:{user_id}:with_reviews".encode()).hexdigest()
+
+    # Check if cached response exists
+    cache_file = os.path.join(cache_dir, f"{query_hash}.json")
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            return json.load(f)
+
+    # If not cached, proceed with regular code
+    query_engine = vector_index.as_retriever()
+    response = query_engine.retrieve(input)
+    results = []
+    for r in response:
+        business_id = r.metadata["businessId"]
+        result = {
+            "text": r.text,
+            "data": gmap_id_to_data[business_id],
+            "user_reviews": [],
+            "business_reviews": [],
+            "images": list(business_images.get(business_id, set())),
+        }
+        if user_id and user_id in user_reviews:
+            for review in user_reviews[user_id]:
+                result["user_reviews"].append(review)
+
+        # Add top 10 business reviews
+        if business_id in business_reviews:
+            # TODO get the top-10 reviews related to the query
+            # option1 : vectorDB to get the top-10 related reviews
+            # option2 : get the top-10 reviews from the business_reviews
+            result["business_reviews"] = sorted(
+                business_reviews[business_id],
+                key=lambda x: safe_len(x["text"]),
+                reverse=True,
+            )[:10]
+            print(f"Business reviews for {business_id} added")
+            # print(result["business_reviews"])
+
+        existing_images = image_collection.get(where={"gmap_id": business_id})
+        if not existing_images["ids"]:
+            initialize_image_embeddings(business_id, result["images"], image_collection)
+            print(f"Image embeddings initialized for business {business_id}")
+
+        if result["images"]:
+            top_images = image_text_matching(input, business_id, image_collection)
+            result["top_images"] = top_images
+            print("Top-k Images Generated")
+        else:
+            result["top_images"] = []
+
+        results.append(result)
+
+    context = get_context_with_reviews(results, user_id)
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a location-based recommendation assistant giving highly recommended places based on context, user's past reviews, and top business reviews. Use the provided information to answer the user's query and Only respond with answer nothing else.",
+        }
+    ]
+    conversations = messages
+
+    messages.append(
+        {
+            "role": "user",
+            "content": f"Context:\n{context}\n\nUser Query: {input}\n Answer USER query only nothing else.",
+        }
+    )
+
+    ollama_response = ollama.chat(model="gmap_recomm_llama3", messages=messages)
+
+    response_data = {
+        "query_hash": query_hash,
+        "response": ollama_response["message"]["content"],
+        "results": results,
+        "conversation_history": [
+            {
+                "role": "system",
+                "content": "You are a location-based recommendation assistant giving highly recommended places based on context, user's past reviews, and top business reviews. Use the provided information to answer the user's query.",
+            },
+            {"role": "user", "content": input},
+            {"role": "assistant", "content": ollama_response["message"]["content"]},
+        ],
+    }
+
+    # Save the response to cache
+    with open(cache_file, "w") as f:
+        json.dump(response_data, f)
+
+    return response_data
+
+
+def get_context_with_reviews(results, user_id):
+    context = "Based on the query, here are some relevant queries from user:\n\n"
+    for i, result in enumerate(results, 1):
+        context += f"{i}. {result['text']}\n"
+        context += f"   Details: {json.dumps(result['data'], indent=2)}\n"
+
+        business_id = result["data"]["gmap_id"]
+
+        if result["user_reviews"]:
+            context += "   User's past reviews:\n"
+            for review in result["user_reviews"]:
+                context += (
+                    f"   - Rating: {review['rating']}, Review: {review['text']}\n"
+                )
+
+        if result["business_reviews"]:
+            context += "  Business reviews:\n"
+            for review in result["business_reviews"]:
+                context += (
+                    f"   - Rating: {review['rating']}, Review: {review['text']}\n"
+                )
+
+        context += "\n"
+    return context
 
 
 @app.post("/follow_up_query")
