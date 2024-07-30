@@ -118,5 +118,5 @@ RAFT is a recipe to adapting LLMs to domain-specific RAG. For information about 
 - [ ] Implement a feedback system for users to rate responses
 
 ## Blog
-The content is also explained briefly in thie [blog](https://www.hackster.io/r-bot/enhancing-local-business-intelligence-beyond-google-map-46939f)
+The content is also explained briefly in my [blog post](https://www.hackster.io/r-bot/enhancing-local-business-intelligence-beyond-google-map-46939f)
 
