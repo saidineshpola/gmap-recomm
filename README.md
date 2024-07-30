@@ -2,7 +2,7 @@
 
 # Enhancing Local Business Intelligence: Beyond Google Map
 
-This is a Streamlit app that uses a large language model to assist with local business queries. It connects to a local API endpoint and provides responses based on the user's input.
+This is a Streamlit app that uses a large language model from ollama to assist with local business queries. It connects to a local API endpoint and provides responses based on the user's input.
 
 ## Table of Contents
 - [Architecture](#architecture)
