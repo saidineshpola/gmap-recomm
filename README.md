@@ -67,13 +67,22 @@ pip install -r requirements.txt
 Download the datasets from [google-local-dataset](https://datarepo.eng.ucsd.edu/mcauley_group/gdrive/googlelocal/#subsets) and save it inside the datasets directory.
 
 ## Ollama model
-Convert the finetuned model from [finetuning notebook](notebooks/finetuning_notebook.ipynb) to ollama using the fllowing command
-> [!NOTE]
-> Update the path of the file in [Modelfile](https://drive.google.com/drive/folders/1VGyEen8RjsoP-OJL6MowOqUuWIkNQH7i)
+
+- You can use the model directly for inference if it fits the system otherwise you have to use [unsloth](https://github.com/unslothai/unsloth) model conversion to convert it to GGUF format.
+- you can use following code from unsloth to convert it to the GGUF model with q4_k_m quantization.
+```python
+from unsloth import FastLanguageModel
+model, tokenizer = FastLanguageModel.from_pretrained("../checkpoint_xx")
+model.save_pretrained_gguf("gguf_model", tokenizer, quantization_method = "q4_k_m")
+```
+Convert the [finetuned model]((https://drive.google.com/drive/folders/1VGyEen8RjsoP-OJL6MowOqUuWIkNQH7i)) from [finetuning notebook](notebooks/finetuning_notebook.ipynb) to ollama using the fllowing command
 
 ```bash
 ollama ollama create gmap_recomm_llama3 -f ./gguf_model/Modelfile
 ```
+
+> [!NOTE]
+> Update the path of the file in [Modelfile](https://drive.google.com/drive/folders/1VGyEen8RjsoP-OJL6MowOqUuWIkNQH7i)
 
 ## Initialize Backend
 
