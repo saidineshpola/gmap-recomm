@@ -2,7 +2,7 @@
 
 # Local Business Assistant
 
-This is a Streamlit app that uses a language model to assist with local business queries. It connects to a local API endpoint and provides responses based on the user's input.
+This is a Streamlit app that uses a large language model to assist with local business queries. It connects to a local API endpoint and provides responses based on the user's input.
 
 ## Table of Contents
 - [Architecture](#architecture)
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 
 ## Datasets
 
-Download the datasets from [google-local-dataset](https:/g) and save it inside the datasets directory.
+Download the datasets from [google-local-dataset](https://datarepo.eng.ucsd.edu/mcauley_group/gdrive/googlelocal/#subsets) and save it inside the datasets directory.
 
 ## Initialize Backend
 
@@ -82,8 +82,7 @@ streamlit run streamlit_demo.py
 *Demo of the Local Business Assistant in action*
 
 ## RAFT
-
-For information about the RAFT technique, please refer to the README file in the `raft` directory.
+RAFT is a recipe to adapting LLMs to domain-specific RAG. For information about the RAFT technique, please refer to the README file in the `raft` directory.
 
 ## TODO
 
