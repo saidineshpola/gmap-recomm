@@ -19,14 +19,14 @@ This is a Streamlit app that uses a language model to assist with local business
 
 ## Demo
 
-<!-- ![Local Business Assistant Demo](path/to/your/demo.gif) -->
+![Local Business Assistant Demo](assets/demo.gif)
 
 *Demo of the Local Business Assistant in action*
 
-<video width="640" height="360" controls>
+<!-- <video width="640" height="360" controls>
   <source src="assets/demo.webm" type="video/mp4">
   Your browser does not support the video tag.
-</video>
+</video> -->
 
 ## Installation
 
