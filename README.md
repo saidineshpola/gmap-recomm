@@ -14,6 +14,7 @@ This is a Streamlit app that uses a large language model to assist with local bu
 - [Demo](#demo)
 - [RAFT](#raft-technique)
 - [TODO](#todo)
+- [Blog](#blog)
 
 ## Architecture
 
@@ -93,4 +94,7 @@ RAFT is a recipe to adapting LLMs to domain-specific RAG. For information about 
 - [ ] Add unit tests for backend functions
 - [ ] Integrate with more data sources for comprehensive information
 - [ ] Implement a feedback system for users to rate responses
+
+## Blog
+The content is also explained in thie [blog](https://www.hackster.io/r-bot/enhancing-local-business-intelligence-beyond-google-map-46939f)
 
