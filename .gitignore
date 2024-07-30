@@ -6,3 +6,4 @@ bge-small-en-v1.5/
 gguf_model/
 checkpoint_12000/
 query_cache
+all-MiniLM-L6-v2/

@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import uuid
 from PIL import Image
 import io
 
@@ -13,6 +12,9 @@ if "conversation_id" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "previous_results" not in st.session_state:
+    st.session_state.previous_results = None
 
 user_id = "101039921652255289747"
 
@@ -29,85 +31,102 @@ if prompt := st.chat_input("Ask me anything about businesses!"):
         message_placeholder = st.empty()
 
         try:
-            response = requests.post(
-                "http://localhost:8000//query_business",
-                params={
+            # Determine which API endpoint to use based on conversation state
+            if st.session_state.conversation_id == 1:
+                api_endpoint = "http://localhost:8000/query_business"
+                params = {
                     "input": prompt,
                     "user_id": user_id,
-                    "conversation_id": st.session_state.conversation_id,
-                },
-            )
+                    "conversation_id": str(st.session_state.conversation_id),
+                }
+                response = requests.post(api_endpoint, params=params)
+            else:
+                api_endpoint = "http://localhost:8000/follow_up_query"
+                payload = {
+                    "query": prompt,
+                    "previous_results": st.session_state.previous_results,
+                    "conversation_history": [
+                        {"role": msg["role"], "content": msg["content"]}
+                        for msg in st.session_state.messages
+                    ],
+                }
+                response = requests.post(api_endpoint, json=payload)
+
             response.raise_for_status()
 
             data = response.json()
             full_response = data["response"]
             results = data.get("results", [])
 
-            # Display the AI's response in a distinct box
+            # Display the AI's response
             st.markdown("### AI Response")
             st.info(full_response)
 
-            if results:
-                result = results[0]
-                business_data = result.get("data", {})
+            if st.session_state.conversation_id == 1:
+                if results:
+                    result = results[0]
+                    business_data = result.get("data", {})
 
-                st.markdown("---")
-                st.header("Additional Business Information")
+                    st.markdown("---")
+                    st.header("Additional Business Information")
 
-                col1, col2 = st.columns(2)
+                    col1, col2 = st.columns(2)
 
-                with col1:
-                    st.subheader("Basic Details")
-                    st.markdown(f"**Name:** {business_data.get('name', 'N/A')}")
-                    st.markdown(
-                        f"**Category:** {', '.join(business_data.get('category', ['N/A']))}"
-                    )
-                    st.markdown(f"**Address:** {business_data.get('address', 'N/A')}")
-
-                    avg_rating = business_data.get("avg_rating")
-                    if avg_rating:
+                    with col1:
+                        st.subheader("Basic Details")
+                        st.markdown(f"**Name:** {business_data.get('name', 'N/A')}")
                         st.markdown(
-                            f"**Rating:** {'⭐' * int(avg_rating)} ({avg_rating}/5)"
+                            f"**Category:** {', '.join(business_data.get('category', ['N/A']))}"
+                        )
+                        st.markdown(
+                            f"**Address:** {business_data.get('address', 'N/A')}"
                         )
 
-                    st.markdown(
-                        f"**Number of Reviews:** {business_data.get('num_of_reviews', 'N/A')}"
-                    )
-                    st.markdown(f"**Price Range:** {business_data.get('price', 'N/A')}")
-                    st.markdown(
-                        f"**Current Status:** {business_data.get('state', 'N/A')}"
-                    )
+                        avg_rating = business_data.get("avg_rating")
+                        if avg_rating:
+                            st.markdown(
+                                f"**Rating:** {'⭐' * int(avg_rating)} ({avg_rating}/5)"
+                            )
 
-                    if "url" in business_data:
-                        st.markdown(f"[View on Google Maps]({business_data['url']})")
+                        st.markdown(
+                            f"**Number of Reviews:** {business_data.get('num_of_reviews', 'N/A')}"
+                        )
+                        st.markdown(
+                            f"**Price Range:** {business_data.get('price', 'N/A')}"
+                        )
+                        st.markdown(
+                            f"**Current Status:** {business_data.get('state', 'N/A')}"
+                        )
 
-                with col2:
-                    pass
-                    # if "hours" in business_data:
-                    #     st.subheader("Business Hours")
-                    #     for day, hours in business_data["hours"]:
-                    #         st.markdown(f"**{day}:** {hours}")
+                        if "url" in business_data:
+                            st.markdown(
+                                f"[View on Google Maps]({business_data['url']})"
+                            )
 
-                if result.get("top_images"):
-                    st.subheader("Related Images")
-                    image_col1, image_col2, image_col3 = st.columns(3)
-                    for idx, img_url in enumerate(result["top_images"]):
-                        try:
-                            img_response = requests.get(img_url)
-                            img_response.raise_for_status()
-                            img = Image.open(io.BytesIO(img_response.content))
+                    with col2:
+                        pass
 
-                            fixed_height = 200
-                            aspect_ratio = img.width / img.height
-                            new_width = int(fixed_height * aspect_ratio)
-                            img_resized = img.resize((new_width, fixed_height))
+                    if result.get("top_images"):
+                        st.subheader("Related Images")
+                        image_col1, image_col2, image_col3 = st.columns(3)
+                        for idx, img_url in enumerate(result["top_images"]):
+                            try:
+                                img_response = requests.get(img_url)
+                                img_response.raise_for_status()
+                                img = Image.open(io.BytesIO(img_response.content))
 
-                            with [image_col1, image_col2, image_col3][idx % 3]:
-                                st.image(img_resized, use_column_width=True)
-                        except Exception as e:
-                            st.write(f"Error loading image: {str(e)}")
+                                fixed_height = 200
+                                aspect_ratio = img.width / img.height
+                                new_width = int(fixed_height * aspect_ratio)
+                                img_resized = img.resize((new_width, fixed_height))
+
+                                with [image_col1, image_col2, image_col3][idx % 3]:
+                                    st.image(img_resized, use_column_width=True)
+                            except Exception as e:
+                                st.write(f"Error loading image: {str(e)}")
 
             st.session_state.conversation_id += 1
+            st.session_state.previous_results = data
 
         except requests.RequestException as e:
             error_message = f"An error occurred: {str(e)}"

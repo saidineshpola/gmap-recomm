@@ -27,7 +27,7 @@ app = FastAPI()
 
 # Set up the embedding model
 embed_model = HuggingFaceEmbedding(
-    model_name="./bge-small-en-v1.5"
+    model_name="./all-MiniLM-L6-v2"
 )  # BAAI/bge-small-en-v1.5
 Settings.embed_model = embed_model
 
@@ -120,6 +120,9 @@ def load_data():
         vector_index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context, embed_model=embed_model
         )
+        vector_index.storage_context.persist(
+            persist_dir="datasets/indiana/chroma_index"
+        )
 
 
 @app.on_event("startup")
@@ -135,7 +138,7 @@ class FollowUpQuery(BaseModel):
 
 
 def get_context(results, user_id):
-    context = "Based on the query, here are some relevant queries from user:\n\n"
+    context = "Here are some relevant information for the business:\n\n"
     for i, result in enumerate(results, 1):
         context += f"{i}. {result['text']}\n"
         context += f"   Details: {json.dumps(result['data'], indent=2)}\n"
@@ -144,10 +147,36 @@ def get_context(results, user_id):
 
         if result["user_reviews"]:
             context += "   User's past reviews:\n"
-            for review in result["user_reviews"]:
+            for review in result["user_reviews"][:5]:
                 context += (
                     f"   - Rating: {review['rating']}, Review: {review['text']}\n"
                 )
+        context += "\n"
+    return context
+
+
+def get_context_with_reviews(results, user_id):
+    context = "Here are some relevant information for the business:\n\n"
+    for i, result in enumerate(results, 1):
+        context += f"{i}. {result['text']}\n"
+        context += f"   Details: {json.dumps(result['data'], indent=2)}\n"
+
+        business_id = result["data"]["gmap_id"]
+
+        if result["user_reviews"]:
+            context += "   User's past reviews:\n"
+            for review in result["user_reviews"][:20]:
+                context += (
+                    f"   - Rating: {review['rating']}, Review: {review['text']}\n"
+                )
+
+        if result["business_reviews"]:
+            context += "  Business reviews:\n"
+            for review in result["business_reviews"][:20]:
+                context += (
+                    f"   - Rating: {review['rating']}, Review: {review['text']}\n"
+                )
+
         context += "\n"
     return context
 
@@ -204,7 +233,7 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
     messages = [
         {
             "role": "system",
-            "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query and Only respond with answer nothing else.",
+            "content": "You are a location-based recommendation assistant giving highly recommended places based on business information and user's past reviews. Use the provided information to answer the user's query and Only respond with answer nothing else.",
         }
     ]
     conversations = messages
@@ -216,7 +245,7 @@ async def query_endpoint(input: str, user_id: str, conversation_id: int = None):
         }
     )
 
-    ollama_response = ollama.chat(model="llama3", messages=messages)
+    ollama_response = ollama.chat(model="gmap_recomm_llama3", messages=messages)
 
     response_data = {
         "query_hash": query_hash,
@@ -259,6 +288,7 @@ async def query_with_reviews_endpoint(
     query_engine = vector_index.as_retriever()
     response = query_engine.retrieve(input)
     results = []
+    print("Response:", response)
     for r in response:
         business_id = r.metadata["businessId"]
         result = {
@@ -304,7 +334,7 @@ async def query_with_reviews_endpoint(
     messages = [
         {
             "role": "system",
-            "content": "You are a location-based recommendation assistant giving highly recommended places based on context, user's past reviews, and top business reviews. Use the provided information to answer the user's query and Only respond with answer nothing else.",
+            "content": "You are a location-based recommendation assistant giving highly recommended places based on business data, user's past reviews, and top business reviews. Use the provided information to answer the user's query and Only respond with answer nothing else.",
         }
     ]
     conversations = messages
@@ -323,10 +353,7 @@ async def query_with_reviews_endpoint(
         "response": ollama_response["message"]["content"],
         "results": results,
         "conversation_history": [
-            {
-                "role": "system",
-                "content": "You are a location-based recommendation assistant giving highly recommended places based on context, user's past reviews, and top business reviews. Use the provided information to answer the user's query.",
-            },
+            messages[0],
             {"role": "user", "content": input},
             {"role": "assistant", "content": ollama_response["message"]["content"]},
         ],
@@ -337,32 +364,6 @@ async def query_with_reviews_endpoint(
         json.dump(response_data, f)
 
     return response_data
-
-
-def get_context_with_reviews(results, user_id):
-    context = "Based on the query, here are some relevant queries from user:\n\n"
-    for i, result in enumerate(results, 1):
-        context += f"{i}. {result['text']}\n"
-        context += f"   Details: {json.dumps(result['data'], indent=2)}\n"
-
-        business_id = result["data"]["gmap_id"]
-
-        if result["user_reviews"]:
-            context += "   User's past reviews:\n"
-            for review in result["user_reviews"]:
-                context += (
-                    f"   - Rating: {review['rating']}, Review: {review['text']}\n"
-                )
-
-        if result["business_reviews"]:
-            context += "  Business reviews:\n"
-            for review in result["business_reviews"]:
-                context += (
-                    f"   - Rating: {review['rating']}, Review: {review['text']}\n"
-                )
-
-        context += "\n"
-    return context
 
 
 @app.post("/follow_up_query")
@@ -385,7 +386,7 @@ async def follow_up_query_endpoint(query: FollowUpQuery):
     messages = [
         {
             "role": "system",
-            "content": "You are a location-based recommendation assistant giving highly recommended places based on context and user's past reviews. Use the provided information to answer the user's query.",
+            "content": "You are a location-based recommendation and Q&A assistant giving highly recommended places based on context, user's past reviews, and answering queries related to those places.",
         }
     ]
 
