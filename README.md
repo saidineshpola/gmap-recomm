@@ -9,12 +9,14 @@ This is a Streamlit app that uses a large language model to assist with local bu
 - [Key Features](#key-features)
 - [Installation](#installation)
 - [Datasets](#datasets)
+- [Ollama model](#ollama-model)
 - [Initialize Backend](#initialize-backend)
 - [Run the App](#run-the-app)
 - [Demo](#demo)
-- [RAFT](#raft-technique)
+- [RAFT](#raft)
 - [TODO](#todo)
 - [Blog](#blog)
+  
 
 ## Architecture
 
@@ -63,6 +65,15 @@ pip install -r requirements.txt
 ## Datasets
 
 Download the datasets from [google-local-dataset](https://datarepo.eng.ucsd.edu/mcauley_group/gdrive/googlelocal/#subsets) and save it inside the datasets directory.
+
+## Ollama model
+Convert the finetuned model from [finetuning notebook](notebooks/finetuning_notebook.ipynb) to ollama using the fllowing command
+> [!NOTE]
+> Update the path of the file in [Modelfile](https://drive.google.com/drive/folders/1VGyEen8RjsoP-OJL6MowOqUuWIkNQH7i)
+
+```bash
+ollama ollama create gmap_recomm_llama3 -f ./gguf_model/Modelfile
+```
 
 ## Initialize Backend
 
