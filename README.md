@@ -4,6 +4,7 @@ This is a Streamlit app that uses a language model to assist with local business
 
 ## Table of Contents
 - [Features](#features)
+- [Architecture](#architecture)
 - [Demo](#demo)
 - [Installation](#installation)
 - [Datasets](#datasets)
@@ -16,6 +17,15 @@ This is a Streamlit app that uses a language model to assist with local business
 - Ask questions about local businesses
 - Get basic details about businesses
 - Follow up on previous queries
+
+## Architecture
+
+- FastAPI Backend: Handles data processing, retrieval, and integration with the LLM.
+- Vector Store: Utilizes Chroma DB for efficient similarity search.
+- Embedding Model: Employs HuggingFace's BAAI/bge-small-en-v1.5 for text embeddings.
+- Large Language Model: Uses a fine-tuned LLaMA3-8B model for natural language understanding and generation.
+- Image Embedding and Matching: Incorporates image-based search for enhanced recommendations using CLIP's features.
+- Streamlit Frontend: Provides an intuitive user interface for interacting with the system.
 
 ## Demo
 
