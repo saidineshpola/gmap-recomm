@@ -26,6 +26,8 @@ This is a Streamlit app that uses a large language model from ollama to assist w
 - Large Language Model: Uses a fine-tuned LLaMA3-8B model for natural language understanding and generation.
 - Image Embedding and Matching: Incorporates image-based search for enhanced recommendations using CLIP's features.
 - Streamlit Frontend: Provides an intuitive user interface for interacting with the system.
+  <br>
+  ![Architecture](https://drive.google.com/uc?export=view&id=1MYzk_n1co_9LXjJWU52CF9GCZIifig1l)
 
 ## Key Features
 
