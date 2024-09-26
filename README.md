@@ -5,6 +5,7 @@ This project is a Streamlit app that uses a large language model from Ollama to 
 ## Table of Contents
 - [Architecture](#architecture)
 - [Key Features](#key-features)
+- [RAFT](#raft)
 - [Folder Structure](#folder-structure)
 - [Installation](#installation)
 - [Datasets](#datasets)
@@ -12,7 +13,6 @@ This project is a Streamlit app that uses a large language model from Ollama to 
 - [Initialize Backend](#initialize-backend)
 - [Run the App](#run-the-app)
 - [Demo](#demo)
-- [RAFT](#raft)
 - [TODO](#todo)
 - [Blog](#blog)
 
@@ -49,6 +49,11 @@ This project is a Streamlit app that uses a large language model from Ollama to 
    - Uses Chroma DB as a vector store for both text and image embeddings
    - Implements semantic search using the BAAI/bge-small-en-v1.5 embedding model
    - Uses CLIP embedding with Chroma DB for image retrievals
+
+## RAFT
+
+RAFT is a recipe for adapting LLMs to domain-specific RAG. For information about the RAFT technique, please refer to the README file in the `raft` directory.
+![RAFT](assets/RAFT.png)
 
 ## Folder Structure
 
@@ -131,10 +136,6 @@ streamlit run src/frontend/streamlit_demo.py
 
 *Demo of the Local Business Assistant in action*
 
-## RAFT
-
-RAFT is a recipe for adapting LLMs to domain-specific RAG. For information about the RAFT technique, please refer to the README file in the `raft` directory.
-![RAFT](assets/RAFT.png)
 
 ## TODO
 
