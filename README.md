@@ -25,7 +25,7 @@ This project is a Streamlit app that uses a large language model from Ollama to 
 - Image Embedding and Matching: Incorporates image-based search for enhanced recommendations using CLIP's features.
 - Streamlit Frontend: Provides an intuitive user interface for interacting with the system.
 
-![Architecture](https://drive.google.com/uc?export=view&id=1MYzk_n1co_9LXjJWU52CF9GCZIifig1l)
+![Architecture](assets/architecture_gmap.png)
 
 ## Key Features
 
