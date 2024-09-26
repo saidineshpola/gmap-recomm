@@ -52,7 +52,9 @@ This project is a Streamlit app that uses a large language model from Ollama to 
 
 ## RAFT
 
-RAFT is a recipe for adapting LLMs to domain-specific RAG. For information about the RAFT technique, please refer to the README file in the `raft` directory.
+RAFT is a recipe for adapting LLMs to domain-specific RAG. RAFT is used to create synthetic dataset in COT(chain of thought) Format along with answer. We can also pass distraction docs for increasing difficulty of prediction at inference/training. Finally, the finetuned model will produce the output using reference to meta data of the business using double quotes. 
+
+For information about the RAFT technique, please refer to the README file in the `raft` directory. 
 ![RAFT](assets/RAFT.png)
 
 ## Folder Structure
