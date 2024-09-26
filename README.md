@@ -134,6 +134,7 @@ streamlit run src/frontend/streamlit_demo.py
 ## RAFT
 
 RAFT is a recipe for adapting LLMs to domain-specific RAG. For information about the RAFT technique, please refer to the README file in the `raft` directory.
+![RAFT](assets/RAFT.png)
 
 ## TODO
 
